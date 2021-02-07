@@ -109,6 +109,76 @@ class CostcoApiEngineV2 {
             case .done(let value):
                 completion(.success(value))
             }
+        }
+    }
+    
+    
+    func send<T: Codable, req: CostcoRequestV3>(_ request: req, codable: T, decisions: [Decision]? = nil, completion: @escaping (Result<T, CostcoError>) -> Void) {
+        
+        let dataRequest = request.buildRequest(domin: domainV2, memberId: memberId, guid: guid, authToken: authToken)
+        dataRequest.response { dataResponse in
+            
+            if let error = dataResponse.error {
+                Logger.log(message: "Error :\(error)")
+                completion(.failure(.failure))
+                return
+            }
+            
+            guard let data = dataResponse.data else {
+                completion(.failure(.failure))
+                return
+            }
+            
+            guard let response = dataResponse.response else {
+                completion(.failure(.failure))
+                return
+            }
+            
+            self.handleDecision(request, codable: codable, data: data, response: response, decisions: request.decisions, completion: completion)
+            
+            
+            switch dataResponse.result {
+            case .success(let data):
+                guard let data = data, let jsonData = try? JSONDecoder().decode(T.self, from: data) else { return }
+                completion(.success(jsonData))
+            case .failure(let error):
+                Logger.log(message: "Error :\(error)")
+                completion(.failure(.failure))
+            }
+        }
+        
+    }
+    
+    
+    func handleDecision<T: Codable, req: CostcoRequestV3>(_ request: req, codable: T, data: Data, response: HTTPURLResponse, decisions: [Decision], completion: @escaping (Result<T, CostcoError>) -> Void) {
+        
+        guard !decisions.isEmpty else {
+            completion(.failure(.failure))
+            return }
+        
+        var decisions = decisions
+        let current = decisions.removeFirst()
+        
+        guard current.shouldApply(request, codable: codable, data: data, response: response) else {
+            handleDecision(request, codable: codable, data: data, response: response, decisions: decisions, completion: completion)
+            return
+        }
+        
+        
+        current.apply(request, codable: codable, data: data, response: response) {
+            action in
+            
+            switch action {
+            
+            case .continueWith(let data, let response):
+                self.handleDecision(request, codable: codable, data: data, response: response, decisions: decisions, completion: completion)
+            case .restartWith(let decisions):
+                self.send(request, codable: codable, decisions: decisions, completion: completion)
+            case .errored(let error):
+                completion(.failure(error))
+            case .done(let value):
+                completion(.success(value))
+            }
             
         }
         

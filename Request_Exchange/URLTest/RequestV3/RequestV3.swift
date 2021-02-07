@@ -1,16 +1,14 @@
 //
-//  RequestV2.swift
+//  RequestV3.swift
 //  Request_Exchange
 //
-//  Created by Woody Liu on 2021/2/7.
+//  Created by Woody Liu on 2021/2/8.
 //
 
 import Foundation
 import Alamofire
 
-
-protocol CostcoRequestV2 {
-    associatedtype Response: Codable
+protocol CostcoRequestV3 {
     var method: HTTPMethod { get }
     var apiManager: APIManager { get }
     var contentType: ContentType { get }
@@ -18,29 +16,7 @@ protocol CostcoRequestV2 {
     var decisions: [Decision] { get }
 }
 
-
-struct BaseRequestV2: CostcoRequestV2 {
-    typealias Response = BaseResponse
-    
-    var method: HTTPMethod
-    
-    var apiManager: APIManager
-    
-    var contentType: ContentType
-    
-    var parametersEncoding: ParameterEncoding?
-    
-    var decisions: [Decision]
-
-    
-}
-
-struct BaseResponse: Codable {
-    
-}
-
-
-extension CostcoRequestV2 {
+extension CostcoRequestV3 {
     
     func buildRequest(domin: String, memberId: String, guid: String, authToken: String)-> DataRequest {
         let endpoint: String = apiManager.endPoint(memberId: memberId, guid: guid, authToken: authToken)
@@ -55,16 +31,17 @@ extension CostcoRequestV2 {
 }
 
 
-
-enum DecisionAction<T: Codable> {
-    case continueWith(Data, HTTPURLResponse)
-    case restartWith([Decision])
-    case errored(CostcoError)
-    case done(T)
-}
-
-
-protocol Decision {
-    func shouldApply<req: CostcoRequestV2>(reuqest: req, data: Data, response: HTTPURLResponse)-> Bool
-    func apply<req: CostcoRequestV2>(reuqest: req, data: Data, response: HTTPURLResponse, closure: @escaping (DecisionAction<req.Response>)-> Void)
+struct BaseRequestV3: CostcoRequestV3 {
+    
+    var method: HTTPMethod
+    
+    var apiManager: APIManager
+    
+    var contentType: ContentType
+    
+    var parametersEncoding: ParameterEncoding?
+    
+    var decisions: [Decision]
+    
+    
 }
